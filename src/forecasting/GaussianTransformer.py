@@ -1,13 +1,28 @@
+from typing import Optional, Tuple
+
 import torch
 import torch.nn as nn
+from torch import Tensor
+
 
 #TODO: Fix this with correct math
 class GaussianMultiheadAttention(nn.MultiheadAttention):
     def __init__(self, embed_dim, num_heads, dropout=0.0, bias=True, batch_first=True):
         super().__init__(embed_dim, num_heads, dropout=dropout, bias=bias, batch_first=batch_first)
+        self.linear = nn.Linear(embed_dim*num_heads, embed_dim)
 
-    def forward(self, query, key, value, key_padding_mask=None, attn_mask=None, need_weights=True,
-                average_attn_weights=True):
+    def forward(
+        self,
+        query: Tensor,
+        key: Tensor,
+        value: Tensor,
+        key_padding_mask: Optional[Tensor] = None,
+        need_weights: bool = True,
+        attn_mask: Optional[Tensor] = None,
+        average_attn_weights: bool = True,
+        is_causal: bool = False,
+    ) -> Tuple[Tensor, Optional[Tensor]]:
+
         attn_output, attn_weights = super().forward(
             query, key, value,
             key_padding_mask=key_padding_mask, attn_mask=attn_mask,
@@ -29,7 +44,7 @@ class GaussianMultiheadAttention(nn.MultiheadAttention):
 
         attn_output = torch.matmul(attn_weights, value.unsqueeze(1).expand(-1, H, -1, -1))
         attn_output = attn_output.transpose(1, 2).reshape(B, Tq, -1)
-
+        attn_output = self.linear(attn_output)
         attn_output = self.out_proj(attn_output)
 
         if need_weights:
@@ -92,3 +107,4 @@ class CustomTransformer(nn.Module):
         output = self.decoder(tgt, memory, tgt_key_padding_mask=tgt_key_padding_mask,
                               memory_key_padding_mask=memory_key_padding_mask)
         return output
+
