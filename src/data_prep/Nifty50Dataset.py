@@ -6,14 +6,15 @@ import pandas_ta as ta
 class Nifty50Dataset(Dataset):
     def __init__(self, csv_path, window_size=60, prediction_horizon=1, transform=None):
         self.data = pd.read_csv(csv_path, parse_dates=['date'])
+        self.data = self.data[0:10000]
 
-        features = ['open', 'high', 'low', 'close']
+        features = ['close']
         self.data = self.data[features]
 
-        self.data['rsi'] = ta.rsi(self.data['close'], length=14)
-        self.data['ema_20'] = ta.ema(self.data['close'], length=20)
-        self.data['ema_50'] = ta.ema(self.data['close'], length=50)
-        self.data['macd'] = ta.macd(self.data['close'])['MACD_12_26_9']
+        #self.data['rsi'] = ta.rsi(self.data['close'], length=14)
+        #self.data['ema_20'] = ta.ema(self.data['close'], length=20)
+        #self.data['ema_50'] = ta.ema(self.data['close'], length=50)
+        #self.data['macd'] = ta.macd(self.data['close'])['MACD_12_26_9']
         #self.data['macd_signal'] = ta.macd(self.data['close'])['MACDs_12_26_9']
         #self.data['macd_hist'] = ta.macd(self.data['close'])['MACDh_12_26_9']
 
@@ -21,7 +22,7 @@ class Nifty50Dataset(Dataset):
 
         self.feature_columns = self.data.columns.tolist()
 
-        self.data = (self.data - self.data.mean()) / (self.data.std() + 1e-6)
+        #self.data = (self.data - self.data.mean()) / (self.data.std() + 1e-6)
         self.data = self.data.values
 
         self.window_size = window_size
@@ -34,8 +35,8 @@ class Nifty50Dataset(Dataset):
     def __getitem__(self, idx):
         x = self.data[idx:idx + self.window_size]
 
-        next_close = self.data[idx + self.window_size + self.prediction_horizon - 1][
-            self.feature_columns.index('close')]
+        next_close = self.data[idx + self.window_size + self.prediction_horizon - 1]#[
+            #self.feature_columns.index('close')]
 
         return torch.tensor(x, dtype=torch.float32), torch.tensor(next_close, dtype=torch.float32)
 

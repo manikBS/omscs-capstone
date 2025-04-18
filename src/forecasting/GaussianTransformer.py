@@ -2,10 +2,24 @@ from typing import Optional, Tuple
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch import Tensor
+import math
 
+class PositionalEncoding(nn.Module):
+    def __init__(self, d_model, max_len=5000):
+        super(PositionalEncoding, self).__init__()
+        pe = torch.zeros(max_len, d_model)
+        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        pe = pe.unsqueeze(0).transpose(0, 1)
+        self.register_buffer('pe', pe)
 
-#TODO: Fix this with correct math
+    def forward(self, x):
+        return x + self.pe[:x.size(0), :]
+
 class GaussianMultiheadAttention(nn.MultiheadAttention):
     def __init__(self, embed_dim, num_heads, dropout=0.0, bias=True, batch_first=True):
         super().__init__(embed_dim, num_heads, dropout=dropout, bias=bias, batch_first=batch_first)
@@ -30,6 +44,14 @@ class GaussianMultiheadAttention(nn.MultiheadAttention):
         )
 
         B, H, Tq, Tk = attn_weights.shape
+        E = query.shape[-1]
+        V_start = 2 * E
+        V_end = 3 * E
+        D = E // H
+
+        v_proj = F.linear(value, self.in_proj_weight[V_start:V_end], self.in_proj_bias[V_start:V_end])
+        v_proj = v_proj.view(B, Tk, H, D).transpose(1, 2)
+
         device = attn_weights.device
 
         pos_q = torch.arange(Tq, device=device)
@@ -40,11 +62,12 @@ class GaussianMultiheadAttention(nn.MultiheadAttention):
         gaussian_bias = gaussian_bias.unsqueeze(0).unsqueeze(0)
         attn_weights = attn_weights * gaussian_bias
 
-        attn_weights = attn_weights / attn_weights.sum(dim=-1, keepdim=True)
+        attn_weights = attn_weights / (attn_weights.sum(dim=-1, keepdim=True) + 1e-5)
 
-        attn_output = torch.matmul(attn_weights, value.unsqueeze(1).expand(-1, H, -1, -1))
+        #attn_output = torch.matmul(attn_weights, value.unsqueeze(1).expand(-1, H, -1, -1))
+        attn_output = torch.matmul(attn_weights, v_proj)
         attn_output = attn_output.transpose(1, 2).reshape(B, Tq, -1)
-        attn_output = self.linear(attn_output)
+        #attn_output = self.linear(attn_output)
         attn_output = self.out_proj(attn_output)
 
         if need_weights:
@@ -91,6 +114,7 @@ class CustomTransformerDecoderLayer(nn.TransformerDecoderLayer):
 class CustomTransformer(nn.Module):
     def __init__(self, d_model=256, nhead=4, num_encoder_layers=3, num_decoder_layers=3, dim_feedforward=1024):
         super().__init__()
+        self.pos_encoder = PositionalEncoding(d_model)
 
         encoder_layer = CustomTransformerEncoderLayer(
             d_model=d_model, nhead=nhead, dim_feedforward=dim_feedforward, dropout=0.1, batch_first=True
@@ -102,9 +126,10 @@ class CustomTransformer(nn.Module):
         )
         self.decoder = nn.TransformerDecoder(decoder_layer, num_layers=num_decoder_layers)
 
-    def forward(self, src, tgt, src_key_padding_mask=None, tgt_key_padding_mask=None, memory_key_padding_mask=None):
+    def forward(self, src, tgt, tgt_mask=None, src_key_padding_mask=None, tgt_key_padding_mask=None, memory_key_padding_mask=None):
+        src = self.pos_encoder(src)
         memory = self.encoder(src, src_key_padding_mask=src_key_padding_mask)
-        output = self.decoder(tgt, memory, tgt_key_padding_mask=tgt_key_padding_mask,
+        output = self.decoder(tgt, memory, tgt_mask=tgt_mask, tgt_key_padding_mask=tgt_key_padding_mask,
                               memory_key_padding_mask=memory_key_padding_mask)
         return output
 
