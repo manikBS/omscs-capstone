@@ -14,7 +14,7 @@ criterion = nn.MSELoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
 forecaster = StockSeriesForecaster(model, optimizer, criterion)
-forecaster.train(loader)
+#forecaster.train(loader)
 
 num_batches = 3
 for i, (x, y) in enumerate(loader):

@@ -4,7 +4,7 @@ import pandas as pd
 
 import torch
 import numpy as np
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 class SklearnBatchMinMaxScaler:
     def __init__(self, feature_range=(-1, 1)):
@@ -39,13 +39,46 @@ class SklearnBatchMinMaxScaler:
         restored_tensor = torch.tensor(np.stack(restored_batches), dtype=torch.float32).to(scaled_tensor.device)
         return restored_tensor
 
+class SklearnBatchStandardScaler:
+    def __init__(self, feature_range=(-1, 1)):
+        self.feature_range = feature_range
+        self.scalers = []
+
+    def scale(self, batch_tensor):
+        B, T, F = batch_tensor.shape
+        batch_np = batch_tensor.cpu().numpy()
+        scaled_batches = []
+        self.scalers = []
+
+        for i in range(B):
+            scaler = StandardScaler()
+            scaled = scaler.fit_transform(batch_np[i])  # shape: (T, F)
+            scaled_batches.append(scaled)
+            self.scalers.append(scaler)
+
+        scaled_tensor = torch.tensor(np.stack(scaled_batches), dtype=torch.float32).to(batch_tensor.device)
+        return scaled_tensor
+
+    def inverse_scale(self, scaled_tensor):
+        B, T, F = scaled_tensor.shape
+        scaled_np = scaled_tensor.cpu().numpy()
+        restored_batches = []
+
+        for i in range(B):
+            scaler = self.scalers[i]
+            restored = scaler.inverse_transform(scaled_np[i])  # shape: (T, F)
+            restored_batches.append(restored)
+
+        restored_tensor = torch.tensor(np.stack(restored_batches), dtype=torch.float32).to(scaled_tensor.device)
+        return restored_tensor
+
 class StockSeriesForecaster:
     def __init__(self, model, optimizer, criterion, device='cpu'):
         self.model = model.to(device)
         self.optimizer = optimizer
         self.criterion = criterion
         self.device = device
-        self.scaler = SklearnBatchMinMaxScaler()
+        self.scaler = SklearnBatchStandardScaler()
 
     def enrich_tensor(self, close_tensor):
         B, window, _ = close_tensor.shape
@@ -108,8 +141,8 @@ class StockSeriesForecaster:
 
                 self.optimizer.zero_grad()
                 out = self.model(x, tgt, tgt_mask=self.generate_square_subsequent_mask(tgt.size(1)))
-                preds = out[:, -1, :]  # Assuming output shape: [B, T, D]
-                loss = self.criterion(preds, y)
+                preds = out[:, -1, 0]  # Assuming output shape: [B, T, D]
+                loss = self.criterion(preds, y[:, 0])
                 loss.backward()
                 self.optimizer.step()
 
@@ -127,8 +160,7 @@ class StockSeriesForecaster:
         src = self.enrich_tensor(src)
         src = src.to(self.device)
 
-        # Start with a zero or special start token sequence [B, 1]
-        B = src.size(0)
+        output = torch.zeros_like(src, dtype=src.dtype, device=self.device)
         generated = torch.zeros_like(src, dtype=src.dtype, device=self.device)
 
         for t in range(1, max_len + 1):
@@ -136,10 +168,13 @@ class StockSeriesForecaster:
 
             out = self.model(src, generated, tgt_mask=tgt_mask)
             next_token = out[:, -1, :]
+            next_seq = torch.cat([src, next_token.unsqueeze(1)], dim=1)
+            unscaled_next_seq = self.scaler.inverse_scale(next_seq)
+            src = unscaled_next_seq[:, :, 0]
+            src = self.enrich_tensor(src.unsqueeze(-1))
+            output[:, t, :] = unscaled_next_seq[:, -1, :]
 
-            generated = torch.cat([generated, next_token.unsqueeze(1)], dim=1)
-
-        return generated[:, 1:]
+        return output[:, 1:]
 
     def generate_square_subsequent_mask(self, sz):
         return torch.triu(torch.full((sz, sz), float('-inf')), diagonal=1)
