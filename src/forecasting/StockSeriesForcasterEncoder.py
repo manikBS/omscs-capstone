@@ -1,7 +1,7 @@
 import torch
 from src.forecasting.Scalers import SklearnBatchStandardScaler, enrich_tensor
 
-class StockSeriesForecaster:
+class StockSeriesForecasterEncoder:
     def __init__(self, model, optimizer, criterion, device='cpu'):
         self.model = model.to(device)
         self.optimizer = optimizer
@@ -23,12 +23,10 @@ class StockSeriesForecaster:
                 x = xy[:, :-1, :]  # shape: (B, T, F)
                 y = xy[:, -1, :]
                 x, y = x.to(self.device), y.to(self.device)
-                tgt = x.clone()
 
                 self.optimizer.zero_grad()
-                out = self.model(x, tgt, tgt_mask=self.generate_square_subsequent_mask(tgt.size(1)))
-                preds = out[:, -1, 0]  # Assuming output shape: [B, T, D]
-                loss = self.criterion(preds, y[:, 0])
+                out = self.model(x)
+                loss = self.criterion(out, y[:, 0].unsqueeze(1))
                 loss.backward()
                 self.optimizer.step()
 
@@ -50,12 +48,9 @@ class StockSeriesForecaster:
                         xy_val = self.scaler.scale(xy_val)
                         x_val = xy_val[:, :-1, :].to(self.device)
                         y_val = xy_val[:, -1, :].to(self.device)
-                        tgt_val = x_val.clone()
 
-                        out_val = self.model(x_val, tgt_val,
-                                             tgt_mask=self.generate_square_subsequent_mask(tgt_val.size(1)))
-                        preds_val = out_val[:, -1, 0]
-                        loss_val = self.criterion(preds_val, y_val[:, 0])
+                        out_val = self.model(x_val)
+                        loss_val = self.criterion(out_val, y_val[:, 0].unsqueeze(1))
                         val_loss += loss_val.item()
 
                 avg_val_loss = val_loss / len(val_loader)
@@ -66,31 +61,25 @@ class StockSeriesForecaster:
     @torch.no_grad()
     def autoregressive_predict(self, src, max_len):
         self.model.eval()
-        l = src.shape[1]
         src = enrich_tensor(src)
         src = self.scaler.scale(src)
         src = src.to(self.device)
 
         predictions = []
-        tgt = torch.zeros(src.size(0), 1, src.size(2)).to(self.device)
 
         for t in range(1, max_len + 1):
-            tgt_mask = self.generate_square_subsequent_mask(tgt.size(1)).to(self.device)
+            out = self.model(src)
+            out_expanded = torch.zeros((src.shape[0], 1, src.shape[2]))
+            out_expanded[:, :, 0] = out
 
-            out = self.model(src, tgt, tgt_mask=tgt_mask)
-            next_token = out[:, -1, :]
-
-            next_seq = torch.cat([src, next_token.unsqueeze(1)], dim=1)
+            next_seq = torch.cat([src, out_expanded], dim=1)
 
             unscaled_next_seq = self.scaler.inverse_scale(next_seq)
-            predictions.append(unscaled_next_seq[:, l:, 0].detach().cpu())
+            predictions.append(unscaled_next_seq[:, src.shape[1]:, 0].detach().cpu())
             unscaled_next_seq = enrich_tensor(unscaled_next_seq[:, :, 0].unsqueeze(-1))
 
             scaled_next_seq = self.scaler.scale_withoutfit(unscaled_next_seq)
 
-            tgt = torch.cat((tgt, scaled_next_seq[:, l:, :]), dim=1)
+            src = scaled_next_seq
 
         return torch.cat(predictions, dim=1)
-
-    def generate_square_subsequent_mask(self, sz):
-        return torch.triu(torch.full((sz, sz), float('-inf')), diagonal=1)

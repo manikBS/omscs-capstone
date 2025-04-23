@@ -64,10 +64,8 @@ class GaussianMultiheadAttention(nn.MultiheadAttention):
 
         attn_weights = attn_weights / (attn_weights.sum(dim=-1, keepdim=True) + 1e-5)
 
-        #attn_output = torch.matmul(attn_weights, value.unsqueeze(1).expand(-1, H, -1, -1))
         attn_output = torch.matmul(attn_weights, v_proj)
         attn_output = attn_output.transpose(1, 2).reshape(B, Tq, -1)
-        #attn_output = self.linear(attn_output)
         attn_output = self.out_proj(attn_output)
 
         if need_weights:
@@ -76,7 +74,6 @@ class GaussianMultiheadAttention(nn.MultiheadAttention):
             return attn_output, attn_weights
         else:
             return attn_output, None
-
 
 class CustomTransformerEncoderLayer(nn.TransformerEncoderLayer):
     def __init__(self, *args, **kwargs):
@@ -88,7 +85,6 @@ class CustomTransformerEncoderLayer(nn.TransformerEncoderLayer):
             dropout=self.self_attn.dropout,
             batch_first=True
         )
-
 
 class CustomTransformerDecoderLayer(nn.TransformerDecoderLayer):
     def __init__(self, *args, **kwargs):
@@ -110,7 +106,6 @@ class CustomTransformerDecoderLayer(nn.TransformerDecoderLayer):
             batch_first=True
         )
 
-
 class CustomTransformer(nn.Module):
     def __init__(self, d_model=256, nhead=4, num_encoder_layers=3, num_decoder_layers=3, dim_feedforward=1024):
         super().__init__()
@@ -131,5 +126,25 @@ class CustomTransformer(nn.Module):
         memory = self.encoder(src, src_key_padding_mask=src_key_padding_mask)
         output = self.decoder(tgt, memory, tgt_mask=tgt_mask, tgt_key_padding_mask=tgt_key_padding_mask,
                               memory_key_padding_mask=memory_key_padding_mask)
+        return output
+
+class CustomTransformerEncoderOnly(nn.Module):
+    def __init__(self, d_model=256, nhead=4, num_encoder_layers=3, dim_feedforward=1024):
+        super().__init__()
+        self.pos_encoder = PositionalEncoding(d_model)
+
+        encoder_layer = CustomTransformerEncoderLayer(
+            d_model=d_model, nhead=nhead, dim_feedforward=dim_feedforward, dropout=0.1, batch_first=True
+        )
+        self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_encoder_layers)
+        self.output_layer = nn.Linear(d_model, 1)
+
+    def forward(self, src, src_key_padding_mask=None):
+        src = self.pos_encoder(src)
+        output = self.encoder(src, src_key_padding_mask=src_key_padding_mask)
+        #mean_pooled = output.mean(dim=1)
+        #output = self.output_layer(mean_pooled)
+        last_step = output[:, -1, :]
+        output = self.output_layer(last_step)
         return output
 

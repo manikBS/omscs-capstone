@@ -6,7 +6,7 @@ import pandas_ta as ta
 class Nifty50Dataset(Dataset):
     def __init__(self, csv_path, window_size=60, prediction_horizon=1, transform=None):
         self.data = pd.read_csv(csv_path, parse_dates=['date'])
-        self.data = self.data[0:1000]
+        self.data = self.data[0:100000]
 
         features = ['close']
         self.data = self.data[features]
