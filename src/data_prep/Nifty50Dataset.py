@@ -18,7 +18,7 @@ class Nifty50Dataset(Dataset):
         #self.data['macd_signal'] = ta.macd(self.data['close'])['MACDs_12_26_9']
         #self.data['macd_hist'] = ta.macd(self.data['close'])['MACDh_12_26_9']
 
-        self.data = self.data.fillna(method='bfill')
+        self.data.bfill(inplace=True)
 
         self.feature_columns = self.data.columns.tolist()
 

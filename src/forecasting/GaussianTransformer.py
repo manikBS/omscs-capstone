@@ -24,6 +24,8 @@ class GaussianMultiheadAttention(nn.MultiheadAttention):
     def __init__(self, embed_dim, num_heads, dropout=0.0, bias=True, batch_first=True):
         super().__init__(embed_dim, num_heads, dropout=dropout, bias=bias, batch_first=batch_first)
         self.linear = nn.Linear(embed_dim*num_heads, embed_dim)
+        self.guass_attn_weights_for_plot = None
+        self.raw_attn_weights_for_plot = None
 
     def forward(
         self,
@@ -42,6 +44,8 @@ class GaussianMultiheadAttention(nn.MultiheadAttention):
             key_padding_mask=key_padding_mask, attn_mask=attn_mask,
             need_weights=True, average_attn_weights=False
         )
+
+        self.raw_attn_weights_for_plot = attn_weights.detach().cpu()
 
         B, H, Tq, Tk = attn_weights.shape
         E = query.shape[-1]
@@ -63,6 +67,8 @@ class GaussianMultiheadAttention(nn.MultiheadAttention):
         attn_weights = attn_weights * gaussian_bias
 
         attn_weights = attn_weights / (attn_weights.sum(dim=-1, keepdim=True) + 1e-5)
+
+        self.guass_attn_weights_for_plot = attn_weights.detach().cpu()
 
         attn_output = torch.matmul(attn_weights, v_proj)
         attn_output = attn_output.transpose(1, 2).reshape(B, Tq, -1)
