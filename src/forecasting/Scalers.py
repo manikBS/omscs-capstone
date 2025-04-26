@@ -19,6 +19,7 @@ def enrich_tensor(close_tensor):
         # df['macd'] = ta.macd(df['close'])['MACD_12_26_9']
 
         df.bfill(inplace=True)
+        df.fillna(0, inplace=True)
 
         enriched.append(df[['close', 'rsi', 'ema_20', 'ema_50']].values)
 
