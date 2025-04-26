@@ -5,3 +5,52 @@
 /.idea/inspectionProfiles/profiles_settings.xml
 /.idea/vcs.xml
 /.idea/workspace.xml
+/.idea/capstone_project.iml
+/data/INDIA VIX_minute.csv
+/model.pth
+/model_ed_manik.pth
+/model_en_manik.pt
+/model_en_manik.pth
+/model_l_1.pth
+/data/NIFTY ALPHA 50_daily_data.csv
+/data/NIFTY ALPHA 50_minute_data.csv
+/data/NIFTY AUTO_daily_data.csv
+/data/NIFTY AUTO_minute_data.csv
+/data/NIFTY BANK_daily_data.csv
+/data/NIFTY BANK_minute_data.csv
+/data/NIFTY COMMODITIES_daily_data.csv
+/data/NIFTY COMMODITIES_minute_data.csv
+/data/NIFTY CONSR DURBL_daily_data.csv
+/data/NIFTY CONSR DURBL_minute_data.csv
+/data/NIFTY CONSUMPTION_daily_data.csv
+/data/NIFTY CONSUMPTION_minute_data.csv
+/data/NIFTY CPSE_daily_data.csv
+/data/NIFTY CPSE_minute_data.csv
+/data/NIFTY ENERGY_daily_data.csv
+/data/NIFTY ENERGY_minute_data.csv
+/data/NIFTY FIN SERVICE_daily_data.csv
+/data/NIFTY FIN SERVICE_minute_data.csv
+/data/NIFTY FMCG_daily_data.csv
+/data/NIFTY FMCG_minute_data.csv
+/data/NIFTY GS COMPSITE_daily_data.csv
+/data/NIFTY GS COMPSITE_minute_data.csv
+/data/NIFTY HEALTHCARE_daily_data.csv
+/data/NIFTY HEALTHCARE_minute_data.csv
+/data/NIFTY IND DIGITAL_daily_data.csv
+/data/NIFTY IND DIGITAL_minute_data.csv
+/data/NIFTY INDIA MFG_daily_data.csv
+/data/NIFTY INDIA MFG_minute_data.csv
+/data/NIFTY INFRA_daily_data.csv
+/data/NIFTY INFRA_minute_data.csv
+/data/NIFTY IT_daily_data.csv
+/data/NIFTY IT_minute_data.csv
+/data/NIFTY LARGEMID250_daily_data.csv
+/data/NIFTY LARGEMID250_minute_data.csv
+/data/NIFTY 50_daily_data.csv
+/data/NIFTY 50_minute_data.csv
+/data/NIFTY 100_daily_data.csv
+/data/NIFTY 100_minute_data.csv
+/data/NIFTY 200_daily_data.csv
+/data/NIFTY 200_minute_data.csv
+/data/NIFTY 500_daily_data.csv
+/data/NIFTY 500_minute_data.csv
