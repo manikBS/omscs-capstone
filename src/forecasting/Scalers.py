@@ -26,6 +26,27 @@ def enrich_tensor(close_tensor):
     enriched_tensor = torch.tensor(np.stack(enriched), dtype=torch.float32).to(close_tensor.device)
     return enriched_tensor
 
+def enrich_tensor_cnn(close_tensor):
+    B, window, _ = close_tensor.shape
+    enriched = []
+
+    for i in range(B):
+        close = close_tensor[i, :, 0].cpu().numpy()
+        df = pd.DataFrame({'close': close})
+
+        # Calculate indicators
+        df["ema"] = ta.ema(df['close'], length=15)
+        df["rsi"] = ta.rsi(df['close'], length=15)
+        df["zscore"] = ta.zscore(df['close'], length=15)
+
+        df.bfill(inplace=True)
+        df.fillna(0, inplace=True)
+
+        enriched.append(df[['close','ema','rsi','zscore']].values)
+
+    enriched_tensor = torch.tensor(np.stack(enriched), dtype=torch.float32).to(close_tensor.device)
+    return enriched_tensor
+
 class SklearnBatchMinMaxScaler:
     def __init__(self, feature_range=(-1, 1)):
         self.feature_range = feature_range
