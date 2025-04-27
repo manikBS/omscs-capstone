@@ -54,3 +54,5 @@
 /data/NIFTY 200_minute_data.csv
 /data/NIFTY 500_daily_data.csv
 /data/NIFTY 500_minute_data.csv
+*.DS_Store
+*.pyc
