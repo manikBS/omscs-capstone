@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, f1_score
 import matplotlib.pyplot as plt
 
 class TimeSeries2DDataset(Dataset):
@@ -83,8 +83,12 @@ class CNN2DTrainer:
             val_loss = self.evaluate(return_loss=True)
             self.val_losses.append(val_loss)
 
-            train_acc = accuracy_score(torch.cat(all_targets), torch.cat(all_preds))
-            print(f"Epoch [{epoch+1}/{num_epochs}] | Train Loss: {avg_loss:.4f} | Val Loss: {val_loss:.4f} | Train Acc: {train_acc:.4f}")
+            all_preds_np = torch.cat(all_preds).cpu().numpy()
+            all_targets_np = torch.cat(all_targets).cpu().numpy()
+
+            train_acc = accuracy_score(all_targets_np, all_preds_np)
+            train_f1 = f1_score(all_targets_np, all_preds_np, average='macro')
+            print(f"Epoch [{epoch+1}/{num_epochs}] | Train Loss: {avg_loss:.4f} | Val Loss: {val_loss:.4f} | Train Acc: {train_acc:.4f} | F1: {train_f1:.4f}")
 
     def evaluate(self, return_loss=False):
         self.model.eval()
@@ -106,9 +110,13 @@ class CNN2DTrainer:
                 all_preds.append(preds.cpu())
                 all_targets.append(y_batch.cpu())
 
+        all_preds_np = torch.cat(all_preds).cpu().numpy()
+        all_targets_np = torch.cat(all_targets).cpu().numpy()
+
         avg_val_loss = total_loss / total_samples
-        val_acc = accuracy_score(torch.cat(all_targets), torch.cat(all_preds))
-        print(f"Validation Loss: {avg_val_loss:.4f} | Accuracy: {val_acc:.4f}")
+        val_acc = accuracy_score(all_targets_np, all_preds_np)
+        val_f1 = f1_score(all_targets_np, all_preds_np, average='macro')
+        print(f"Validation Loss: {avg_val_loss:.4f} | Accuracy: {val_acc:.4f} | F1:{val_f1:.4f}")
 
         if return_loss:
             return avg_val_loss
