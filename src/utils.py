@@ -11,6 +11,16 @@ MACD_SIGNAL_WINDOW = 9
 STOCH_WINDOW = 45
 
 def add_indicators(df):
+    """
+    Add the following indicators to the pandas dataframe:
+    EMA_SLOW with window  120
+    EMA_FAST with window 60
+    MACD with slow window 120, fast window 45 and signal window 9
+    Stochastic with window 45
+
+    :param df:
+    :return:
+    """
     df['ema_slow'] = ta.trend.EMAIndicator(df['close'], window=EMA_2).ema_indicator()
     df['ema_fast'] = ta.trend.EMAIndicator(df['close'], window=EMA_1).ema_indicator()
 
@@ -28,6 +38,7 @@ def add_indicators(df):
     df['stoch_signal'] = stoch.stoch_signal()
 
     return df
+
 
 def calculate_batch_size(total_samples, target_batch_count=100):
     """Calculates the batch size as the nearest power of 2 for 100 batches.
@@ -99,27 +110,3 @@ def get_all_data(data_base: str):
         'min_close': 'close',
     })
     return merged_data
-
-def create_train_val_test_split(df, forecast_window, lookback_factor, forecast_start_date, training_ratio):
-    lookback_window = max(90, forecast_window * lookback_factor)
-    forecast_end_date = forecast_start_date + pd.DateOffset(days=forecast_window)
-    training_start_date = forecast_start_date - pd.DateOffset(days=lookback_window)
-    df1 = df[df['min_date'] < forecast_start_date]
-    df1 = df1[df1['min_date'] >= training_start_date]
-    df2 = df[df['min_date'] >= forecast_start_date]
-    test_df = df2[df2['min_date'] < forecast_end_date]
-
-    total_train_data_len = df1.shape[0]
-    train_df = df1[:int(total_train_data_len * training_ratio)]
-    val_df = df1[int(total_train_data_len * training_ratio):]
-
-    train_df.reset_index()
-    train_df["time_idx"] = train_df.index
-    val_df.reset_index()
-    val_df["time_idx"] = val_df.index
-    test_df.reset_index()
-    test_df["time_idx"] = test_df.index
-
-    return train_df, val_df, test_df
-
-
